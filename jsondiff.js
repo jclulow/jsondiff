@@ -25,6 +25,48 @@ function twoDee(m, n) {
   return c;
 }
 
+function deepEqual(a, b) {
+  if (whatis(a) !== whatis(b))
+    return false;
+  if (whatis(a) === 'object') {
+    for (var k in a) {
+      if (a.hasOwnProperty(k))
+        if (!deepEqual(a[k], b[k]))
+          return false;
+    }
+    for (var k in b) {
+      if (b.hasOwnProperty(k))
+        if (!deepEqual(a[k], b[k]))
+          return false;
+    }
+    return true;
+  }
+  if (whatis(a) === 'array') {
+    if (a.length !== b.length)
+      return false;
+    for (var i = 0; i < a.length; i++)
+      if (!deepEqual(a[i], b[i]))
+        return false;
+    return true;
+  }
+  return (a === b);
+}
+
+function makeLCSArray2(x, y) { /*X[1..m], Y[1..n]*/
+  var c = twoDee(x.length + 1, y.length + 1);
+  for (var i = 0; i < x.length; i++) {
+    for (var j = 0; j < y.length; j++) {
+      if (deepEqual(x[i], y[j])) {
+        c[i + 1][j + 1] = c[i][j] + 1;
+      } else {
+        var m = Math.max(c[i + 1][j], c[i][j + 1]);
+        c[i + 1][j + 1] = m;
+      }
+    }
+  }
+  return c;
+}
+
 function makeLCSArray(x, y) { /*X[1..m], Y[1..n]*/
   var c = twoDee(x.length + 1, y.length + 1);
   for (var i = 0; i < x.length; i++) {
@@ -65,19 +107,84 @@ function makeArrayKeys(a) {
   return k;
 }
 
+function arrayDiff(a, b) {
+  var typeA = whatis(a);
+  var typeB = whatis(b);
+  var list = [];
+  if (typeA !== 'array' || typeB !== 'array') {
+    log('ERROR: top level types should be array');
+    return null;
+  }
+  var cc = makeLCSArray2(a, b);
+
+  function diffInternal(c, x, y, i, j) {
+    if (i > 0 && j > 0 && x[i - 1] === y[j - 1]) {
+      diffInternal(c, x, y, i - 1, j - 1);
+      var va = x[i - 1];
+      var o = {
+        action: 'common',
+        type: whatis(va)
+      };
+      if (o.type === 'object')
+        o.diff = objectDiff(va, va);
+      else if (o.type === 'array')
+        o.diff = arrayDiff(va, va);
+      else
+        o.value = va;
+      list.push(o);
+    } else {
+      if (j > 0 && (i === 0 || c[i][j - 1] >= c[i - 1][j])) {
+        diffInternal(c, x, y, i, j - 1);
+        var vb = y[j - 1];
+        var o = {
+          action: 'add',
+          type: whatis(vb)
+        };
+        if (o.type === 'object')
+          o.diff = objectDiff({}, vb);
+        else if (o.type === 'array')
+          o.diff = arrayDiff([], vb);
+        else
+          o.value = vb;
+        list.push(o);
+      } else if (i > 0 && (j === 0 || c[i][j - 1] < c[i - 1][j])) {
+        diffInternal(c, x, y, i - 1, j);
+        var va = x[i - 1];
+        var o = {
+          action: 'remove',
+          type: whatis(va)
+        };
+        if (o.type === 'object')
+          o.diff = objectDiff({}, va);
+        else if (o.type === 'array')
+          o.diff = arrayDiff([], va);
+        else
+          o.value = va;
+        list.push(o);
+      }
+    }
+  }
+  diffInternal(cc, a, b, cc.length - 1, cc[0].length - 1);
+  return list;
+}
+
 function objectDiff(a, b) {
   var keysA, keysB;
   var typeA = whatis(a);
   var typeB = whatis(b);
   var list = [];
+
   if (typeA !== typeB) {
     log('ERROR: top level types should be the same: had ' + typeA +
       ' and ' + typeB);
     return null;
   }
-  var keyFunc = typeA === 'array' ? makeArrayKeys : getKeysSorted;
-  keysA = keyFunc(a);
-  keysB = keyFunc(b);
+
+  if (typeA === 'array')
+    return arrayDiff(a, b);
+
+  keysA = getKeysSorted(a);
+  keysB = getKeysSorted(b);
   var cc = makeLCSArray(keysA, keysB);
 
   function diffInternal(c, x, y, i, j) {
@@ -175,7 +282,7 @@ function printDiff(a, topType) {
     return s;
   }
 
-  function recurs(a) {
+  function recurs(a, k) {
     for (var i = 0; i < a.length; i++) {
       function comma() { return ((i + 1 < a.length) ? ',' : ''); }
       var o = a[i];
@@ -183,19 +290,20 @@ function printDiff(a, topType) {
                o.action === 'remove' ? '-' : ' ';
       if (o.type === 'object' || o.type === 'array') {
         var del = o.type === 'object' ? ['{', '}'] : ['[', ']'];
-        log(ch + indent() + o.key + ': ' + del[0]);
+        log(ch + indent() + (k ? o.key + ': ' : '') + del[0]);
         ind++;
-        recurs(o.diff);
+        recurs(o.diff, o.type === 'object');
         ind--;
         log(ch + indent() + del[1] + comma());
       } else {
-        log(ch + indent() + o.key + ': ' + JSON.stringify(o.value) + comma());
+        log(ch + indent() + (k ? o.key + ': ' : '') +
+          JSON.stringify(o.value) + comma());
       }
     }
   }
 
   log(topType === 'object' ? '{' : '[');
-  recurs(a);
+  recurs(a, topType === 'object');
   log(topType === 'object' ? '}' : ']');
 }
 
@@ -203,7 +311,7 @@ function printDiff(a, topType) {
  * MAIN PROGRAM                                                           *
  **************************************************************************/
 
-if (process.argv.length < 4) {
+if (process.argv.length !== 4) {
   log('Usage: ' + process.argv[1] + ' <jsonfile1> <jsonfile2>');
   exit(1);
 }
