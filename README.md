@@ -33,7 +33,7 @@ Right:
 
 Diff:
 
-```
+```diff
 [
    1,
    2,
@@ -79,7 +79,10 @@ Left:
   "common": {
     "john": 4,
     "still here": true
-  }
+  },
+  "equal": "!!!!",
+  "wasarray": [ 1, 2 ,3 ,4],
+  "stillisarray": [ 1, 1, 2, 5, 3, 4, 0, 2, 3, 2, 3, 5, 9]
 }
 ```
 
@@ -101,13 +104,16 @@ Right:
     "john": null,
     "mary": 5,
     "still here": true
-  }
+  },
+  "equal": "!!!!",
+  "wasarray": { "test": "5" },
+  "stillisarray": [ 3, 4, 0, 2, 3, 4, 6, 4, 2, 3, 5, 9]
 }
 ```
 
 Diff:
 
-```
+```diff
 {
 -  aa: 7,
 +  aa: 5,
