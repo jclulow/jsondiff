@@ -137,7 +137,7 @@ function arrayDiff(a, b) {
   var cc = makeLCSArray2(a, b);
 
   function diffInternal(c, x, y, i, j) {
-    if (i > 0 && j > 0 && x[i - 1] === y[j - 1]) {
+    if (i > 0 && j > 0 && deepEqual(x[i - 1], y[j - 1])) {
       diffInternal(c, x, y, i - 1, j - 1);
       var va = x[i - 1];
       var o = {
@@ -174,9 +174,9 @@ function arrayDiff(a, b) {
           type: whatis(va)
         };
         if (o.type === 'object')
-          o.diff = objectDiff({}, va);
+          o.diff = objectDiff(va, {});
         else if (o.type === 'array')
-          o.diff = arrayDiff([], va);
+          o.diff = arrayDiff(va, []);
         else
           o.value = va;
         list.push(o);
