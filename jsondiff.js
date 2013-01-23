@@ -31,7 +31,7 @@ function getKeysSorted(obj) {
     if (obj.hasOwnProperty(k))
       keys.push(k);
   }
-  return keys.sort(function (a, b) { return a > b; });
+  return keys.sort(function (a, b) { return a > b ? 1 : a < b ? -1 : 0; });
 }
 
 function twoDee(m, n) {
